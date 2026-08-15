@@ -33,10 +33,3 @@ This project is built with **Spring Boot** and **Java 17+**. Below is the breakd
 * **`spring-boot-testcontainers` / `testcontainers-postgresql`**: Spawns real, disposable Docker instances of PostgreSQL during integration tests.
 
 ---
-
-### 💡 Quick Reference: Initializr vs Manual Additions
-
-| Source | Dependencies |
-| :--- | :--- |
-| **Spring Initializr (`start.spring.io`)** | Web, WebSocket, Security, Data JPA, PostgreSQL, Flyway, Redis, Validation, Lombok, Testcontainers |
-| **Manual Addition (`pom.xml`)** | `jjwt-api/impl/jackson`, `springdoc-openapi-starter-webmvc-ui`, `bucket4j-core` |
