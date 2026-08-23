@@ -3,7 +3,6 @@ package com.stp.stPlatform.service;
 import com.stp.stPlatform.domain.OrderStatus;
 import com.stp.stPlatform.domain.OrderType;
 import com.stp.stPlatform.model.*;
-import com.stp.stPlatform.repository.AssetRepository;
 import com.stp.stPlatform.repository.OrderItemRepository;
 import com.stp.stPlatform.repository.OrderRepository;
 import org.springframework.stereotype.Service;
@@ -19,16 +18,16 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
-    private final AssetRepository assetRepository;
+    private final AssetService assetService;
     private final WalletService walletService;
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             OrderItemRepository orderItemRepository,
-                            AssetRepository assetRepository,
+                            AssetService assetService,
                             WalletService walletService) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
-        this.assetRepository = assetRepository;
+        this.assetService = assetService;
         this.walletService = walletService;
     }
 
@@ -95,7 +94,7 @@ public class OrderServiceImpl implements OrderService {
             return sellAsset(coin, quantity, user);
         }
 
-        throw new IllegalArgumentException("Unsupported order type");
+        throw new IllegalArgumentException("Unsupported order type: " + orderType);
     }
 
     @Transactional
@@ -111,25 +110,18 @@ public class OrderServiceImpl implements OrderService {
         Order order = createOrder(user, orderItem, OrderType.BUY);
         orderItem.setOrder(order);
 
-        // Deduct money from wallet
+        // Settle wallet payment
         walletService.payOrderPayment(order, user);
 
         order.setStatus(OrderStatus.SUCCESS);
         Order savedOrder = orderRepository.save(order);
 
-        // Update or create Asset holding
-        Asset asset = assetRepository.findByUserIdAndCoinId(user.getId(), coin.getId()).orElse(null);
-
-        if (asset == null) {
-            Asset newAsset = new Asset();
-            newAsset.setUser(user);
-            newAsset.setCoin(coin);
-            newAsset.setQuantity(quantity);
-            newAsset.setBuyPrice(coin.getCurrentPrice());
-            assetRepository.save(newAsset);
+        // Update portfolio through AssetService
+        Asset existingAsset = assetService.findAssetByUserIdAndCoinId(user.getId(), coin.getId());
+        if (existingAsset == null) {
+            assetService.createAsset(user, coin, quantity);
         } else {
-            asset.setQuantity(asset.getQuantity() + quantity);
-            assetRepository.save(asset);
+            assetService.updateAsset(existingAsset.getId(), existingAsset.getQuantity() + quantity);
         }
 
         return savedOrder;
@@ -137,8 +129,10 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     public Order sellAsset(Coin coin, double quantity, User user) throws Exception {
-        Asset asset = assetRepository.findByUserIdAndCoinId(user.getId(), coin.getId())
-                .orElseThrow(() -> new IllegalArgumentException("You do not own any " + coin.getName() + " to sell"));
+        Asset asset = assetService.findAssetByUserIdAndCoinId(user.getId(), coin.getId());
+        if (asset == null) {
+            throw new IllegalArgumentException("You do not own any " + coin.getName() + " to sell");
+        }
 
         if (asset.getQuantity() < quantity) {
             throw new IllegalArgumentException("Insufficient coin balance to sell. Available: " + asset.getQuantity());
@@ -148,19 +142,18 @@ public class OrderServiceImpl implements OrderService {
         Order order = createOrder(user, orderItem, OrderType.SELL);
         orderItem.setOrder(order);
 
-        // Credit money to wallet
+        // Credit proceeds to wallet
         walletService.payOrderPayment(order, user);
 
         order.setStatus(OrderStatus.SUCCESS);
         Order savedOrder = orderRepository.save(order);
 
-        // Deduct asset quantity or remove if zero
+        // Reduce holding or delete asset through AssetService
         double updatedQuantity = asset.getQuantity() - quantity;
         if (updatedQuantity <= 0) {
-            assetRepository.delete(asset);
+            assetService.deleteAsset(asset.getId());
         } else {
-            asset.setQuantity(updatedQuantity);
-            assetRepository.save(asset);
+            assetService.updateAsset(asset.getId(), updatedQuantity);
         }
 
         return savedOrder;
