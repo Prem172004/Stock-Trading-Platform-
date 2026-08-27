@@ -102,10 +102,17 @@ public class CoinServiceImpl implements CoinService {
     @Override
     public Coin findById(String coinId) throws Exception {
         Optional<Coin> optionalCoin = coinRepository.findById(coinId);
-        if (optionalCoin.isEmpty()) {
+        if (optionalCoin.isPresent()) {
+            return optionalCoin.get();
+        }
+        // Auto-fetch missing coin details from API and save to DB
+        try {
+            getCoinDetails(coinId);
+            return coinRepository.findById(coinId)
+                    .orElseThrow(() -> new Exception("Coin not found with id: " + coinId));
+        } catch (Exception e) {
             throw new Exception("Coin not found with id: " + coinId);
         }
-        return optionalCoin.get();
     }
 
     @Override
