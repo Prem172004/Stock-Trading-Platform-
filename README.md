@@ -3,7 +3,6 @@
 This project is built with **Spring Boot** and **Java 17+**. Below is the breakdown of core starters, third-party libraries, and testing tools.
 
 ---
-
 ### 1. Web & Real-Time
 * **`spring-boot-starter-web`**: Provides Tomcat embedded server, MVC structure, and REST API routing.
 * **`spring-boot-starter-websocket`**: Enables STOMP/WebSocket protocols for real-time, bi-directional communication.
