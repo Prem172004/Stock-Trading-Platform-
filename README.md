@@ -32,5 +32,6 @@ This project is built with **Spring Boot** and **Java 17+**. Below is the breakd
 * **`spring-boot-testcontainers` / `testcontainers-postgresql`**: Spawns real, disposable Docker instances of PostgreSQL during integration tests.
 
 ### 6. woking on the forntend
+the frontend is commplete but the api connection is not fully working after refresh and still needs modifications
 
 ---
